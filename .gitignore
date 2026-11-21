@@ -1,0 +1,12 @@
+# Runtime user data & temp caches
+subscriptions.json
+workshop_tmp/
+_trash_*/
+*.log
+node_modules/
+
+# OS / Editor artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp

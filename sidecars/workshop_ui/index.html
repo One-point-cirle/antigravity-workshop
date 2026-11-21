@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>创意工坊</title>
+  <script src="/preload.js"></script>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #f7f8fa;
+      --card: #ffffff;
+      --fg: #1f2328;
+      --muted: #59636e;
+      --border: #dfe3e8;
+      --primary: #1a73e8;
+      --primary-hover: #1557b0;
+      --primary-fg: #ffffff;
+      --pill-bg: #eef1f5;
+      --tag-bg: #f1f3f5;
+      --ok: #137333;
+      --ok-bg: #e6f4ea;
+      --warn: #b06000;
+      --warn-bg: #fef7e0;
+      --danger: #c5221f;
+      --danger-bg: #fce8e6;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font: 13px/1.55 system-ui, -apple-system, "Microsoft YaHei UI", "Segoe UI", sans-serif;
+    }
+    .app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      padding: 10px 12px 60px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .title { font-size: 15px; font-weight: 700; margin: 0; color: var(--fg); }
+    .row { display: flex; gap: 6px; align-items: center; }
+
+    .seg-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 3px;
+      border-radius: 9px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+    .seg-tab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 12.5px;
+      cursor: pointer;
+    }
+    .seg-tab.active {
+      background: var(--card);
+      color: var(--fg);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .seg-badge {
+      font-size: 11px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: var(--pill-bg);
+      color: var(--muted);
+    }
+    .seg-tab.active .seg-badge {
+      background: var(--primary);
+      color: var(--primary-fg);
+    }
+
+    input[type="text"], select {
+      padding: 6px 9px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--fg);
+      font: inherit;
+      font-size: 12px;
+      outline: none;
+    }
+    input[type="text"] { flex: 1; min-width: 0; }
+    input[type="text"]::placeholder { color: var(--muted); opacity: 0.9; }
+    input[type="text"]:focus, select:focus { border-color: var(--primary); background: var(--card); }
+
+    button, .link-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 5px 10px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--fg);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+    button:hover:not(:disabled), .link-btn:hover { background: var(--surface); }
+    button.primary {
+      background: var(--primary);
+      color: var(--primary-fg);
+      border-color: var(--primary);
+    }
+    button.primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
+    button.danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+    button.danger:hover:not(:disabled) { background: var(--danger-bg); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin: 9px 0;
+    }
+    .pill {
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--fg);
+      font-weight: 500;
+    }
+    .pill.active {
+      background: var(--primary);
+      color: var(--primary-fg);
+      border-color: var(--primary);
+    }
+
+    .custom-box {
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      margin-bottom: 10px;
+      background: var(--surface);
+    }
+    .mirror-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 7px;
+    }
+    .mirror-opt {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11.5px;
+      color: var(--fg);
+      cursor: pointer;
+      user-select: none;
+    }
+    .mirror-opt input { accent-color: var(--primary); cursor: pointer; }
+
+    .sec-divider {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin: 14px 0 8px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--fg);
+    }
+    .sec-sub { font-size: 11px; color: var(--muted); font-weight: 400; }
+
+    .list { display: flex; flex-direction: column; gap: 9px; }
+    .card {
+      padding: 11px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .card-title-btn {
+      background: transparent;
+      border: none;
+      padding: 0;
+      text-align: left;
+      cursor: pointer;
+      color: var(--fg);
+      display: inline;
+      font-size: 13.5px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+    .card-title-btn:hover { color: var(--primary); text-decoration: underline; }
+    .card-en {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 500;
+      margin-left: 5px;
+    }
+    .meta-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 5px;
+    }
+    .badge {
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 999px;
+    }
+    .badge-platform { background: var(--pill-bg); color: var(--muted); }
+    .badge-low { background: var(--ok-bg); color: var(--ok); }
+    .badge-medium { background: var(--warn-bg); color: var(--warn); }
+    .badge-high { background: var(--danger-bg); color: var(--danger); }
+    .badge-ok { background: var(--ok-bg); color: var(--ok); flex-shrink: 0; }
+
+    .card-summary {
+      margin: 7px 0 8px;
+      color: var(--fg);
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+    .card-orig-note {
+      margin-top: 4px;
+      font-size: 11.5px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .expand-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-bottom: 7px;
+    }
+    .expand-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--fg);
+      font-size: 11.5px;
+      font-weight: 500;
+    }
+    .expand-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .chevron {
+      width: 13px;
+      height: 13px;
+      transition: transform .18s ease;
+      flex-shrink: 0;
+    }
+    .expand-btn[aria-expanded="true"] .chevron { transform: rotate(180deg); }
+
+    .sidebar-jump-btn {
+      background: transparent;
+      border: none;
+      padding: 2px 4px;
+      color: var(--primary);
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .sidebar-jump-btn:hover { text-decoration: underline; background: transparent; }
+
+    .details-drawer {
+      display: none;
+      margin: 2px 0 9px;
+      padding: 9px 11px;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--fg);
+    }
+    .details-drawer.open { display: block; }
+    .detail-sec { margin-bottom: 7px; }
+    .detail-sec:last-child { margin-bottom: 0; }
+    .detail-label { font-weight: 600; color: var(--fg); margin-bottom: 2px; }
+    .detail-list { margin: 0; padding-left: 16px; }
+    .detail-list li { margin-bottom: 2px; }
+    .risk-alert {
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      margin-top: 6px;
+      background: var(--warn-bg);
+      color: var(--warn);
+    }
+    .risk-alert.low { background: var(--ok-bg); color: var(--ok); }
+    .risk-alert.high { background: var(--danger-bg); color: var(--danger); }
+
+    .detail-url-box {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .repo-url {
+      font-size: 11px;
+      color: var(--muted);
+      word-break: break-all;
+      flex: 1;
+      min-width: 130px;
+    }
+
+    .card-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .tags { display: flex; gap: 4px; flex-wrap: wrap; }
+    .tag {
+      font-size: 10.5px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: var(--tag-bg);
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .actions { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+
+    .gh-more-box {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    .back-top-btn {
+      position: fixed;
+      right: 14px;
+      bottom: 44px;
+      z-index: 20;
+      padding: 5px 10px;
+      border-radius: 999px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.16);
+      display: none;
+    }
+
+    .status-bar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 8px 12px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      font-size: 11.5px;
+      color: var(--fg);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      z-index: 10;
+    }
+
+    /* 侧边栏阅读页 + 一键翻译栏 */
+    .reader-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 30;
+      flex-direction: column;
+    }
+    .reader-overlay.open { display: flex; }
+    .reader-top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .reader-title {
+      font-weight: 700;
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 100px;
+    }
+    .reader-trans-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 6px 11px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      font-size: 11.5px;
+      flex-wrap: wrap;
+    }
+    .reader-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 13px;
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: var(--fg);
+    }
+    .reader-body pre {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 9px;
+      overflow-x: auto;
+      font-size: 11.5px;
+    }
+    .reader-body code {
+      background: var(--surface);
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-size: 11.5px;
+    }
+    .reader-body pre code { background: none; padding: 0; }
+    .reader-body a { color: var(--primary); }
+    .reader-body h1, .reader-body h2, .reader-body h3 {
+      margin: 13px 0 6px;
+      line-height: 1.35;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 3px;
+    }
+    .reader-body h1 { font-size: 15.5px; }
+    .reader-body h2 { font-size: 13.5px; }
+    .reader-body h3 { font-size: 12.5px; border-bottom: none; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <h1 class="title">创意工坊</h1>
+      <div class="row">
+        <button id="btn-refresh" title="刷新列表">刷新</button>
+        <button id="btn-reload-self" title="仅重启工坊后端，不关 Antigravity">热重载</button>
+        <button id="btn-cold-restart" title="一键重启 Antigravity 加载新插件">冷启动</button>
+        <button id="btn-open-dir" title="打开 E 盘插件目录">目录</button>
+      </div>
+    </div>
+
+    <div class="seg-tabs">
+      <button class="seg-tab active" id="tab-discover">
+        <span>发现（创意工坊）</span>
+        <span class="seg-badge" id="badge-discover">0</span>
+      </button>
+      <button class="seg-tab" id="tab-installed">
+        <span>已安装</span>
+        <span class="seg-badge" id="badge-installed">0</span>
+      </button>
+    </div>
+
+    <div class="row">
+      <input type="text" id="search" placeholder="输入关键词搜索，或回车搜索全网 GitHub..." />
+      <button class="primary" id="btn-gh-search">搜 GitHub</button>
+    </div>
+
+    <div class="pills" id="cats"></div>
+
+    <div class="custom-box" id="custom-box">
+      <div class="row">
+        <input type="text" id="custom-url" placeholder="粘贴任意 GitHub 仓库链接直接订阅安装" />
+        <button class="primary" id="btn-custom-install">订阅安装</button>
+      </div>
+      <div class="mirror-row">
+        <label class="mirror-opt">
+          <input type="checkbox" id="use-mirror" checked />
+          <span>国内镜像加速</span>
+        </label>
+        <div class="row" style="gap:4px;">
+          <span style="font-size:11.5px;color:var(--muted);">简介语言:</span>
+          <select id="lang-select" title="选择 GitHub 在线插件与说明的显示语言">
+            <option value="zh-CN" selected>自动译为简体中文</option>
+            <option value="zh-TW">自动译为繁體中文</option>
+            <option value="bilingual">中英双语对照</option>
+            <option value="orig">保持原语言</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 精选区 -->
+    <div id="curated-section">
+      <div class="sec-divider" id="curated-header">
+        <span id="curated-title">中文精选推荐</span>
+        <span class="sec-sub" id="curated-count"></span>
+      </div>
+      <div class="list" id="curated-list"></div>
+    </div>
+
+    <!-- GitHub 实时追加扩展区（保留上方精选，不替换、不丢失！） -->
+    <div id="gh-section" style="display:none;">
+      <div class="sec-divider">
+        <span id="gh-title">GitHub 全网实时发现</span>
+        <div class="row" style="gap:5px;">
+          <span class="sec-sub" id="gh-count"></span>
+          <button id="btn-clear-gh" style="padding:2px 7px;font-size:11px;">收起</button>
+        </div>
+      </div>
+      <div class="list" id="gh-list"></div>
+    </div>
+
+    <div class="gh-more-box" id="gh-more-box">
+      <button class="primary" id="btn-gh-more">在 GitHub 发现更多同类插件</button>
+    </div>
+  </div>
+
+  <button class="back-top-btn" id="btn-back-top">↑ 回到顶部</button>
+  <div class="status-bar" id="status">就绪：所有订阅插件均自动挂载至 Antigravity 全局插件目录。</div>
+
+  <!-- 侧边栏默认阅读页（内置一键翻译 + 语言选择 + 浏览器直达） -->
+  <div class="reader-overlay" id="reader">
+    <div class="reader-top">
+      <button id="reader-back">← 返回</button>
+      <div class="reader-title" id="reader-title">项目详情</div>
+      <button class="primary" id="reader-install" style="display:none;">订阅安装</button>
+      <a class="link-btn" id="reader-ext" href="#" target="_blank" rel="noopener noreferrer" title="在外部浏览器中打开原仓库">浏览器直达 ↗</a>
+    </div>
+    <div class="reader-trans-bar">
+      <div class="row" id="reader-badges" style="flex-wrap:wrap;gap:4px;"></div>
+      <div class="row" style="gap:5px;margin-left:auto;">
+        <select id="reader-lang">
+          <option value="zh-CN">简体中文</option>
+          <option value="zh-TW">繁體中文</option>
+          <option value="en">English</option>
+          <option value="ja">日本語</option>
+          <option value="ko">한국어</option>
+        </select>
+        <button class="primary" id="reader-translate-btn">🌐 一键翻译</button>
+        <button id="reader-orig-btn" style="display:none;">看原文</button>
+      </div>
+    </div>
+    <div class="reader-body" id="reader-body">正在加载说明文档...</div>
+  </div>
+
+  <script>
+    const CATS = ['全部', 'Agent 增强', '资源检索', '记忆上下文', '通道通知', '工具集成', '趣味互动', '资源导航'];
+    let state = {
+      tab: 'discover',
+      items: [],
+      installed: [],
+      ghItems: [],
+      ghPage: 0,
+      ghHasMore: false,
+      ghTotal: 0,
+      ghQueryKey: '',
+      activeCat: '全部',
+      query: '',
+      lang: 'zh-CN',
+      busy: false,
+      loadingGh: false,
+      expanded: new Set(),
+      pluginsDir: '',
+      readerRawMd: '',
+      readerTranslatedCache: new Map(),
+      readerItem: null,
+    };
+
+    function applyTheme(themeType) {
+      const dark = themeType === 'dark';
+      const r = document.documentElement.style;
+      r.setProperty('--bg', dark ? '#131314' : '#ffffff');
+      r.setProperty('--surface', dark ? '#1e1f20' : '#f7f8fa');
+      r.setProperty('--card', dark ? '#18191b' : '#ffffff');
+      r.setProperty('--fg', dark ? '#e8eaed' : '#1f2328');
+      r.setProperty('--muted', dark ? '#9aa0a6' : '#59636e');
+      r.setProperty('--border', dark ? '#333537' : '#dfe3e8');
+      r.setProperty('--primary', dark ? '#8ab4f8' : '#1a73e8');
+      r.setProperty('--primary-hover', dark ? '#aecbfa' : '#1557b0');
+      r.setProperty('--primary-fg', dark ? '#131314' : '#ffffff');
+      r.setProperty('--pill-bg', dark ? '#282a2c' : '#eef1f5');
+      r.setProperty('--tag-bg', dark ? '#282a2c' : '#f1f3f5');
+      r.setProperty('--ok', dark ? '#81c995' : '#137333');
+      r.setProperty('--ok-bg', dark ? 'rgba(129, 201, 149, 0.14)' : '#e6f4ea');
+      r.setProperty('--warn', dark ? '#fdd663' : '#b06000');
+      r.setProperty('--warn-bg', dark ? 'rgba(253, 214, 99, 0.14)' : '#fef7e0');
+      r.setProperty('--danger', dark ? '#f28b82' : '#c5221f');
+      r.setProperty('--danger-bg', dark ? 'rgba(242, 139, 130, 0.14)' : '#fce8e6');
+    }
+
+    window.addEventListener('message', (ev) => {
+      if (ev.data && ev.data.type === 'theme-change' && ev.data.payload) {
+        applyTheme(ev.data.payload.themeType);
+      }
+    });
+
+    const SIDECAR_TOKEN = new URLSearchParams(window.location.search).get('token') || '';
+    function apiFetch(url, options = {}) {
+      const headers = { ...(options.headers || {}) };
+      if (SIDECAR_TOKEN) headers['x-sidecar-token'] = SIDECAR_TOKEN;
+      return fetch(url, { ...options, headers });
+    }
+
+    function setStatus(msg) {
+      document.getElementById('status').textContent = msg;
+    }
+
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function riskLabel(risk) {
+      if (risk === 'low') return { text: '低风险', cls: 'badge-low' };
+      if (risk === 'high') return { text: '注意凭据/权限', cls: 'badge-high' };
+      return { text: '中风险·社区开源', cls: 'badge-medium' };
+    }
+
+    function simpleMdToHtml(md) {
+      let safe = escapeHtml(md);
+      safe = safe.replace(/```([\s\S]*?)```/g, (_, code) => `<pre><code>${code.trim()}</code></pre>`);
+      safe = safe.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+      safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+      const lines = safe.split('\n');
+      const out = [];
+      let inPre = false;
+      for (const line of lines) {
+        if (line.includes('<pre>')) inPre = true;
+        if (inPre) {
+          out.push(line);
+          if (line.includes('</pre>')) inPre = false;
+          continue;
+        }
+        if (/^###\s+(.+)/.test(line)) out.push(`<h3>${line.replace(/^###\s+/, '')}</h3>`);
+        else if (/^##\s+(.+)/.test(line)) out.push(`<h2>${line.replace(/^##\s+/, '')}</h2>`);
+        else if (/^#\s+(.+)/.test(line)) out.push(`<h1>${line.replace(/^#\s+/, '')}</h1>`);
+        else if (/^[-*]\s+(.+)/.test(line)) out.push(`<div>• ${line.replace(/^[-*]\s+/, '')}</div>`);
+        else if (!line.trim()) out.push('<div style="height:6px"></div>');
+        else out.push(`<div>${line}</div>`);
+      }
+      return out.join('\n');
+    }
+
+    async function translateReader(targetLang) {
+      if (!state.readerRawMd) return;
+      const body = document.getElementById('reader-body');
+      const origBtn = document.getElementById('reader-orig-btn');
+      const tBtn = document.getElementById('reader-translate-btn');
+
+      if (state.readerTranslatedCache.has(targetLang)) {
+        body.innerHTML = simpleMdToHtml(state.readerTranslatedCache.get(targetLang));
+        origBtn.style.display = 'inline-flex';
+        return;
+      }
+
+      tBtn.disabled = true;
+      tBtn.textContent = '翻译中...';
+      try {
+        const res = await apiFetch('/api/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ markdown: state.readerRawMd, tl: targetLang })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || '翻译失败');
+        state.readerTranslatedCache.set(targetLang, data.markdown);
+        body.innerHTML = simpleMdToHtml(data.markdown);
+        origBtn.style.display = 'inline-flex';
+      } catch (e) {
+        setStatus('README 翻译失败：' + e.message);
+      } finally {
+        tBtn.disabled = false;
+        tBtn.textContent = '🌐 一键翻译';
+      }
+    }
+
+    async function openSidebarReadme(item) {
+      const reader = document.getElementById('reader');
+      const body = document.getElementById('reader-body');
+      const badgesBox = document.getElementById('reader-badges');
+      const ext = document.getElementById('reader-ext');
+      const instBtn = document.getElementById('reader-install');
+      const origBtn = document.getElementById('reader-orig-btn');
+      const readerLangSel = document.getElementById('reader-lang');
+      const targetUrl = item.docsUrl || item.repo || '#';
+
+      state.readerItem = item;
+      state.readerRawMd = '';
+      state.readerTranslatedCache = new Map();
+      origBtn.style.display = 'none';
+
+      const prefLang = state.lang === 'bilingual' || state.lang === 'orig' ? 'zh-CN' : state.lang;
+      readerLangSel.value = prefLang;
+
+      document.getElementById('reader-title').textContent = `${item.zhName || item.displayName}`;
+      ext.href = targetUrl;
+
+      const rInfo = riskLabel(item.risk);
+      badgesBox.innerHTML = `
+        <span class="badge badge-platform">${escapeHtml(item.platform || 'GitHub')}</span>
+        <span class="badge ${rInfo.cls}">${rInfo.text}</span>
+      `;
+
+      if (item.repo && !item.installed && !item.isSelf) {
+        instBtn.style.display = 'inline-flex';
+        instBtn.textContent = '订阅安装';
+        instBtn.onclick = async () => {
+          await installPlugin(item);
+          reader.classList.remove('open');
+        };
+      } else {
+        instBtn.style.display = 'none';
+      }
+
+      body.innerHTML = '正在侧边栏内加载原项目说明与 README 文档...';
+      reader.classList.add('open');
+
+      if (!item.repo) {
+        body.innerHTML = `<p>${escapeHtml(item.summary || item.description || '本地插件，无外部仓库地址。')}</p>`;
+        return;
+      }
+
+      try {
+        const params = new URLSearchParams({
+          repo: item.repo,
+          subdir: item.subdir || '',
+          branch: item.branch || 'main',
+          useMirror: String(document.getElementById('use-mirror').checked)
+        });
+        const res = await apiFetch('/api/readme?' + params.toString());
+        const data = await res.json();
+        if (!data.ok) {
+          body.innerHTML = `
+            <p>${escapeHtml(data.error)}</p>
+            <p><strong>中文概述：</strong>${escapeHtml(item.summary || item.description || '')}</p>
+            <p><a href="${escapeHtml(targetUrl)}" target="_blank" rel="noopener noreferrer">在浏览器中直达仓库 ↗</a></p>
+          `;
+          return;
+        }
+        state.readerRawMd = data.content;
+        body.innerHTML = simpleMdToHtml(data.content);
+        // 若全局选择了自动翻译且原 README 主要为英文，则自动译为对应语言
+        if (state.lang !== 'orig' && /[A-Za-z]{20,}/.test(data.content.slice(0, 400))) {
+          await translateReader(readerLangSel.value);
+        }
+      } catch (e) {
+        body.innerHTML = `<p>加载失败：${escapeHtml(e.message)}</p><p><a href="${escapeHtml(targetUrl)}" target="_blank" rel="noopener noreferrer">在浏览器中直达仓库 ↗</a></p>`;
+      }
+    }
+
+    function renderCats() {
+      const box = document.getElementById('cats');
+      box.style.display = state.tab === 'discover' ? 'flex' : 'none';
+      document.getElementById('custom-box').style.display = state.tab === 'discover' ? 'block' : 'none';
+      if (state.tab !== 'discover') return;
+      box.innerHTML = '';
+      for (const c of CATS) {
+        const b = document.createElement('button');
+        b.className = 'pill' + (state.activeCat === c ? ' active' : '');
+        b.textContent = c;
+        b.onclick = () => {
+          state.activeCat = c;
+          state.ghItems = [];
+          state.ghPage = 0;
+          state.ghHasMore = false;
+          renderCats();
+          renderList();
+        };
+        box.appendChild(b);
+      }
+    }
+
+    async function loadCatalog() {
+      try {
+        const res = await apiFetch('/api/catalog');
+        const data = await res.json();
+        state.items = data.items || [];
+        state.installed = data.installed || [];
+        state.pluginsDir = data.pluginsDir || '';
+        document.getElementById('badge-discover').textContent = String(state.items.length);
+        document.getElementById('badge-installed').textContent = String(state.installed.length);
+        renderCats();
+        renderList();
+      } catch (e) {
+        setStatus('加载目录失败：' + e.message);
+      }
+    }
+
+    async function fetchGithubPage(append = false) {
+      if (state.loadingGh) return;
+      state.loadingGh = true;
+      const q = state.query.trim();
+      const targetPage = append ? state.ghPage + 1 : 1;
+      const tl = state.lang === 'bilingual' ? 'zh-CN' : state.lang;
+      const autoTranslate = state.lang === 'orig' ? '0' : '1';
+
+      const moreBtn = document.getElementById('btn-gh-more');
+      if (moreBtn) {
+        moreBtn.disabled = true;
+        moreBtn.textContent = `正在加载第 ${targetPage} 页...`;
+      }
+      setStatus(`正在从 GitHub 拉取第 ${targetPage} 页「${q || state.activeCat}」插件并翻译简介...`);
+
+      try {
+        const params = new URLSearchParams({
+          q,
+          cat: state.activeCat,
+          page: String(targetPage),
+          autoTranslate,
+          tl,
+        });
+        const res = await apiFetch('/api/search-github?' + params.toString());
+        const data = await res.json();
+        if (!data.ok) {
+          setStatus(data.error || 'GitHub 搜索失败');
+          return;
+        }
+
+        const curatedRepos = new Set(state.items.map(x => (x.repo || '').toLowerCase()));
+        const existingRepos = new Set(append ? state.ghItems.map(x => (x.repo || '').toLowerCase()) : []);
+        const newItems = (data.items || []).filter(x => {
+          const r = (x.repo || '').toLowerCase();
+          if (curatedRepos.has(r) || existingRepos.has(r)) return false;
+          existingRepos.add(r);
+          return true;
+        });
+
+        state.ghItems = append ? [...state.ghItems, ...newItems] : newItems;
+        state.ghPage = targetPage;
+        state.ghHasMore = Boolean(data.hasMore);
+        state.ghTotal = data.totalCount || state.ghItems.length;
+        state.tab = 'discover';
+        updateTabsUi();
+        renderList();
+        setStatus(`已加载 GitHub 第 ${state.ghPage} 页（当前共展示 ${state.ghItems.length} 个扩展项目，全站约 ${state.ghTotal} 个）。上方精选仍完整保留。`);
+      } catch (e) {
+        setStatus('GitHub 检索失败：' + e.message);
+      } finally {
+        state.loadingGh = false;
+        if (moreBtn) moreBtn.disabled = false;
+        renderList();
+      }
+    }
+
+    async function retranslateLoadedGhItems() {
+      if (!state.ghItems.length || state.lang === 'orig') {
+        renderList();
+        return;
+      }
+      const tl = state.lang === 'bilingual' ? 'zh-CN' : state.lang;
+      const need = state.ghItems.filter(it => it.summaryOrig && /[A-Za-z]{2,}/.test(it.summaryOrig));
+      if (!need.length) { renderList(); return; }
+      setStatus('正在切换语言并翻译已加载列表...');
+      try {
+        const res = await apiFetch('/api/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ texts: need.map(x => x.summaryOrig), tl })
+        });
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.texts)) {
+          need.forEach((it, idx) => { it.summaryZh = data.texts[idx]; });
+        }
+      } catch {}
+      renderList();
+      setStatus('语言已切换。');
+    }
+
+    async function installPlugin(spec) {
+      if (state.busy) return;
+      state.busy = true;
+      renderList();
+      setStatus(`正在下载并订阅安装 ${spec.zhName || spec.repo}...`);
+      try {
+        const res = await apiFetch('/api/install', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...spec,
+            useMirror: document.getElementById('use-mirror').checked
+          })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || '未知错误');
+        if (data.missingDeps && data.missingDeps.length) {
+          const missStr = data.missingDeps.map(d => d.label || d.command).join('、');
+          setStatus(`已安装 ${data.id}（自带 Skills 已就绪）；但检测到本机缺少运行环境：${missStr}，启用其 MCP 工具前需先安装对应运行环境。`);
+        } else {
+          setStatus(`订阅安装成功：${data.id} 已加入「已安装」（需加载新 MCP 工具时可点顶部「冷启动」）。`);
+        }
+        await loadCatalog();
+        if (state.ghItems.length) {
+          const ids = new Set(state.installed.map(x => x.id));
+          state.ghItems = state.ghItems.map(x => ({ ...x, installed: ids.has(x.id) }));
+          renderList();
+        }
+      } catch (e) {
+        setStatus('安装失败：' + e.message);
+      } finally {
+        state.busy = false;
+        renderList();
+      }
+    }
+
+    async function togglePlugin(id, nextEnabled) {
+      try {
+        const res = await apiFetch('/api/toggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, enabled: nextEnabled })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error);
+        setStatus(`${id} 已${nextEnabled ? '启用' : '停用'}`);
+        await loadCatalog();
+      } catch (e) {
+        setStatus('切换状态失败：' + e.message);
+      }
+    }
+
+    async function uninstallPlugin(id) {
+      if (state.busy) return;
+      state.busy = true;
+      renderList();
+      setStatus(`正在取消订阅并卸载 ${id}...`);
+      try {
+        const res = await apiFetch('/api/uninstall', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || '卸载失败');
+        setStatus(`已卸载：${id}`);
+        await loadCatalog();
+        if (state.ghItems.length) {
+          const ids = new Set(state.installed.map(x => x.id));
+          state.ghItems = state.ghItems.map(x => ({ ...x, installed: ids.has(x.id) }));
+          renderList();
+        }
+      } catch (e) {
+        setStatus('卸载失败：' + e.message);
+      } finally {
+        state.busy = false;
+        renderList();
+      }
+    }
+
+    function createCardElement(item) {
+      const isExpanded = state.expanded.has(item.id);
+      const rInfo = riskLabel(item.risk);
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const head = document.createElement('div');
+      head.className = 'card-head';
+      const leftHead = document.createElement('div');
+      leftHead.style.minWidth = '0';
+
+      const titleBtn = document.createElement('button');
+      titleBtn.type = 'button';
+      titleBtn.className = 'card-title-btn';
+      titleBtn.title = '点击在侧边栏内查看完整介绍与原项目文档';
+      titleBtn.innerHTML = `${escapeHtml(item.zhName)}<span class="card-en">${escapeHtml(item.enName || '')}</span>`;
+      titleBtn.onclick = () => openSidebarReadme(item);
+      leftHead.appendChild(titleBtn);
+
+      const badges = document.createElement('div');
+      badges.className = 'meta-badges';
+      badges.innerHTML = `
+        <span class="badge badge-platform">${escapeHtml(item.platform || 'GitHub')}</span>
+        <span class="badge ${rInfo.cls}">${rInfo.text}</span>
+      `;
+      leftHead.appendChild(badges);
+      head.appendChild(leftHead);
+
+      if (item.installed) {
+        const ok = document.createElement('span');
+        ok.className = 'badge badge-ok';
+        ok.textContent = state.tab === 'installed' ? (item.enabled ? '已启用' : '已停用') : '已订阅';
+        head.appendChild(ok);
+      }
+
+      const summary = document.createElement('div');
+      summary.className = 'card-summary';
+      if (item.fromGithubSearch) {
+        if (state.lang === 'orig') {
+          summary.textContent = item.summaryOrig || item.summary || '';
+        } else if (state.lang === 'bilingual') {
+          summary.innerHTML = `<div>${escapeHtml(item.summaryZh || item.summary || '')}</div>` +
+            (item.summaryOrig && item.summaryZh && item.summaryOrig !== item.summaryZh
+              ? `<div class="card-orig-note">${escapeHtml(item.summaryOrig)}</div>` : '');
+        } else {
+          summary.textContent = item.summaryZh || item.summary || '';
+        }
+      } else {
+        summary.textContent = item.summary || '';
+      }
+
+      const expRow = document.createElement('div');
+      expRow.className = 'expand-row';
+
+      const expBtn = document.createElement('button');
+      expBtn.type = 'button';
+      expBtn.className = 'expand-btn';
+      expBtn.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+      expBtn.innerHTML = `
+        <span>${isExpanded ? '收起简介' : '详细介绍'}</span>
+        <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 6l4 4 4-4"/>
+        </svg>
+      `;
+      expBtn.onclick = () => {
+        if (state.expanded.has(item.id)) state.expanded.delete(item.id);
+        else state.expanded.add(item.id);
+        renderList();
+      };
+      expRow.appendChild(expBtn);
+
+      if (item.repo) {
+        const jumpBtn = document.createElement('button');
+        jumpBtn.type = 'button';
+        jumpBtn.className = 'sidebar-jump-btn';
+        jumpBtn.textContent = '侧边栏看原项目介绍 →';
+        jumpBtn.onclick = () => openSidebarReadme(item);
+        expRow.appendChild(jumpBtn);
+      }
+
+      const drawer = document.createElement('div');
+      drawer.className = 'details-drawer' + (isExpanded ? ' open' : '');
+      let dHtml = '';
+      if (item.details?.features?.length) {
+        dHtml += `<div class="detail-sec"><div class="detail-label">核心功能</div><ul class="detail-list">${item.details.features.map(f => `<li>${escapeHtml(f)}</li>`).join('')}</ul></div>`;
+      }
+      if (item.details?.scenarios) {
+        dHtml += `<div class="detail-sec"><div class="detail-label">适用场景</div><div>${escapeHtml(item.details.scenarios)}</div></div>`;
+      }
+      if (item.details?.requirements) {
+        dHtml += `<div class="detail-sec"><div class="detail-label">环境要求</div><div>${escapeHtml(item.details.requirements)}</div></div>`;
+      }
+      if (item.riskNote) {
+        dHtml += `<div class="risk-alert ${item.risk || 'medium'}">${escapeHtml(item.riskNote)}</div>`;
+      }
+      if (item.repo) {
+        const u = item.docsUrl || item.repo;
+        dHtml += `
+          <div class="detail-url-box">
+            <span class="repo-url">${escapeHtml(u)}</span>
+            <button type="button" class="btn-sidebar-doc primary">侧边栏阅读文档</button>
+            <a class="link-btn" href="${escapeHtml(u)}" target="_blank" rel="noopener noreferrer">浏览器直达 ↗</a>
+          </div>
+        `;
+      }
+      drawer.innerHTML = dHtml;
+      const docBtn = drawer.querySelector('.btn-sidebar-doc');
+      if (docBtn) docBtn.onclick = () => openSidebarReadme(item);
+
+      const foot = document.createElement('div');
+      foot.className = 'card-foot';
+      const tags = document.createElement('div');
+      tags.className = 'tags';
+      const catTag = document.createElement('span');
+      catTag.className = 'tag';
+      catTag.textContent = item.category;
+      tags.appendChild(catTag);
+      for (const t of (item.tags || [])) {
+        const sp = document.createElement('span');
+        sp.className = 'tag';
+        sp.textContent = t;
+        tags.appendChild(sp);
+      }
+
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+      if (item.isSelf) {
+        const b = document.createElement('button');
+        b.disabled = true;
+        b.textContent = '工坊本体';
+        actions.appendChild(b);
+      } else if (item.installed) {
+        if (state.tab === 'installed') {
+          const tBtn = document.createElement('button');
+          tBtn.disabled = state.busy;
+          tBtn.textContent = item.enabled ? '停用' : '启用';
+          tBtn.onclick = () => togglePlugin(item.id, !item.enabled);
+          actions.appendChild(tBtn);
+
+          if (item.repo) {
+            const uBtn = document.createElement('button');
+            uBtn.disabled = state.busy;
+            uBtn.textContent = '更新';
+            uBtn.onclick = () => installPlugin(item);
+            actions.appendChild(uBtn);
+          }
+        }
+        const dBtn = document.createElement('button');
+        dBtn.className = 'danger';
+        dBtn.disabled = state.busy;
+        dBtn.textContent = '卸载';
+        dBtn.onclick = () => uninstallPlugin(item.id);
+        actions.appendChild(dBtn);
+      } else {
+        const iBtn = document.createElement('button');
+        iBtn.className = 'primary';
+        iBtn.disabled = state.busy;
+        iBtn.textContent = '订阅安装';
+        iBtn.onclick = () => installPlugin(item);
+        actions.appendChild(iBtn);
+      }
+
+      foot.appendChild(tags);
+      foot.appendChild(actions);
+
+      card.appendChild(head);
+      card.appendChild(summary);
+      if (item.missingDeps && item.missingDeps.length) {
+        const depWarn = document.createElement('div');
+        depWarn.className = 'risk-alert medium';
+        depWarn.style.marginTop = '6px';
+        const missText = item.missingDeps.map(d => d.label || d.command).join('、');
+        depWarn.textContent = `运行环境提示：缺少 ${missText}（其自带 Skills/规则可直接使用，MCP 服务需补装该运行环境后冷启动生效）`;
+        card.appendChild(depWarn);
+      }
+      card.appendChild(expRow);
+      card.appendChild(drawer);
+      card.appendChild(foot);
+      return card;
+    }
+
+    function updateTabsUi() {
+      document.getElementById('tab-discover').classList.toggle('active', state.tab === 'discover');
+      document.getElementById('tab-installed').classList.toggle('active', state.tab === 'installed');
+      renderCats();
+    }
+
+    function renderList() {
+      const curatedBox = document.getElementById('curated-list');
+      const curatedHeader = document.getElementById('curated-header');
+      const curatedTitle = document.getElementById('curated-title');
+      const curatedCount = document.getElementById('curated-count');
+      const ghSection = document.getElementById('gh-section');
+      const ghBox = document.getElementById('gh-list');
+      const ghMoreBox = document.getElementById('gh-more-box');
+      const ghMoreBtn = document.getElementById('btn-gh-more');
+
+      curatedBox.innerHTML = '';
+      ghBox.innerHTML = '';
+      const q = state.query.trim().toLowerCase();
+
+      if (state.tab === 'installed') {
+        ghSection.style.display = 'none';
+        ghMoreBox.style.display = 'none';
+        const catMap = new Map(state.items.map(i => [i.id, i]));
+        let list = state.installed.map(inst => {
+          const known = catMap.get(inst.id);
+          return known ? {
+            ...known,
+            installed: true,
+            enabled: inst.enabled,
+            subscribedAt: inst.subscribedAt,
+            capabilities: inst.capabilities || [],
+            missingDeps: inst.missingDeps || []
+          } : {
+            id: inst.id,
+            zhName: inst.displayName,
+            enName: inst.enName || inst.id,
+            category: inst.category || '本地插件',
+            platform: inst.platform || '本地目录',
+            risk: inst.risk || 'medium',
+            riskNote: inst.riskNote || '',
+            summary: inst.description || '本地已安装插件',
+            repo: inst.repo,
+            docsUrl: inst.docsUrl,
+            tags: [inst.isSelf ? '工坊本体' : '已订阅', ...(inst.capabilities || [])],
+            installed: true,
+            enabled: inst.enabled,
+            isSelf: inst.isSelf,
+            subscribedAt: inst.subscribedAt,
+            capabilities: inst.capabilities || [],
+            missingDeps: inst.missingDeps || []
+          };
+        });
+        if (q) {
+          list = list.filter(it =>
+            (it.zhName || '').toLowerCase().includes(q) ||
+            (it.enName || '').toLowerCase().includes(q) ||
+            (it.summary || '').toLowerCase().includes(q)
+          );
+        }
+        curatedTitle.textContent = '已安装插件（我的订阅）';
+        curatedCount.textContent = `${list.length} 项`;
+        if (!list.length) {
+          curatedBox.innerHTML = '<div style="padding:18px;text-align:center;color:var(--muted);">暂无匹配的已安装插件</div>';
+        } else {
+          for (const it of list) curatedBox.appendChild(createCardElement(it));
+        }
+        return;
+      }
+
+      // 发现（创意工坊）视图：始终保留精选区 + 在下方连续追加 GitHub 实时发现
+      let curated = state.items.filter(item => state.activeCat === '全部' || item.category === state.activeCat);
+      if (q) {
+        curated = curated.filter(it =>
+          (it.zhName || '').toLowerCase().includes(q) ||
+          (it.enName || '').toLowerCase().includes(q) ||
+          (it.summary || '').toLowerCase().includes(q) ||
+          (it.tags || []).some(t => t.toLowerCase().includes(q))
+        );
+      }
+      curatedTitle.textContent = `中文精选推荐（${state.activeCat}）`;
+      curatedCount.textContent = `${curated.length} 项`;
+
+      if (curated.length === 0) {
+        curatedBox.innerHTML = '<div style="padding:10px;text-align:center;color:var(--muted);font-size:12px;">精选目录中暂无匹配项，可查看下方或点击按钮从 GitHub 检索</div>';
+      } else {
+        for (const it of curated) curatedBox.appendChild(createCardElement(it));
+      }
+
+      // GitHub 实时追加区
+      if (state.ghItems.length > 0) {
+        ghSection.style.display = 'block';
+        document.getElementById('gh-title').textContent = `GitHub 实时发现（第 ${state.ghPage} 页）`;
+        document.getElementById('gh-count').textContent = `已加载 ${state.ghItems.length} / 约 ${state.ghTotal} 项`;
+        for (const it of state.ghItems) ghBox.appendChild(createCardElement(it));
+      } else {
+        ghSection.style.display = 'none';
+      }
+
+      ghMoreBox.style.display = 'flex';
+      if (!state.loadingGh) {
+        if (state.ghPage === 0) {
+          ghMoreBtn.textContent = `在 GitHub 发现更多「${state.activeCat}」插件`;
+          ghMoreBtn.disabled = false;
+        } else if (state.ghHasMore) {
+          ghMoreBtn.textContent = `继续加载下一页（第 ${state.ghPage + 1} 页，再追加 20 个）`;
+          ghMoreBtn.disabled = false;
+        } else {
+          ghMoreBtn.textContent = '已加载全部可检索结果';
+          ghMoreBtn.disabled = true;
+        }
+      }
+    }
+
+    window.addEventListener('scroll', () => {
+      document.getElementById('btn-back-top').style.display = window.scrollY > 280 ? 'inline-flex' : 'none';
+    });
+    document.getElementById('btn-back-top').onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    document.getElementById('tab-discover').onclick = () => {
+      state.tab = 'discover';
+      updateTabsUi();
+      renderList();
+    };
+    document.getElementById('tab-installed').onclick = () => {
+      state.tab = 'installed';
+      updateTabsUi();
+      renderList();
+    };
+    document.getElementById('search').addEventListener('input', (e) => {
+      state.query = e.target.value;
+      renderList();
+    });
+    document.getElementById('search').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') fetchGithubPage(false);
+    });
+    document.getElementById('btn-gh-search').onclick = () => fetchGithubPage(false);
+    document.getElementById('btn-gh-more').onclick = () => fetchGithubPage(state.ghPage > 0);
+    document.getElementById('btn-clear-gh').onclick = () => {
+      state.ghItems = [];
+      state.ghPage = 0;
+      state.ghHasMore = false;
+      renderList();
+    };
+    document.getElementById('lang-select').addEventListener('change', async (e) => {
+      state.lang = e.target.value;
+      await retranslateLoadedGhItems();
+    });
+    document.getElementById('reader-translate-btn').onclick = () => {
+      translateReader(document.getElementById('reader-lang').value);
+    };
+    document.getElementById('reader-lang').addEventListener('change', (e) => {
+      translateReader(e.target.value);
+    });
+    document.getElementById('reader-orig-btn').onclick = () => {
+      document.getElementById('reader-body').innerHTML = simpleMdToHtml(state.readerRawMd);
+      document.getElementById('reader-orig-btn').style.display = 'none';
+    };
+
+    document.getElementById('btn-refresh').onclick = loadCatalog;
+    document.getElementById('btn-open-dir').onclick = () => apiFetch('/api/open-dir', { method: 'POST' });
+    document.getElementById('reader-back').onclick = () => document.getElementById('reader').classList.remove('open');
+    document.getElementById('btn-reload-self').onclick = async () => {
+      setStatus('正在热重载工坊后端（约 1 秒后恢复）...');
+      try { await apiFetch('/api/reload-self', { method: 'POST' }); } catch {}
+      setTimeout(async () => {
+        await loadCatalog();
+        setStatus('工坊后端已完成热重载。');
+      }, 1500);
+    };
+    document.getElementById('btn-cold-restart').onclick = async () => {
+      if (!confirm('将自动关闭并重新启动 Antigravity 以全量加载新安装插件，确定继续吗？')) return;
+      setStatus('正在执行一键冷启动，请稍候...');
+      try {
+        const res = await apiFetch('/api/cold-restart', { method: 'POST' });
+        const data = await res.json();
+        if (!data.ok) setStatus('冷启动失败：' + (data.error || '未知错误'));
+      } catch (e) {
+        setStatus('冷启动请求异常：' + e.message);
+      }
+    };
+    document.getElementById('btn-custom-install').onclick = () => {
+      const url = document.getElementById('custom-url').value.trim();
+      if (!url || !url.startsWith('http')) {
+        setStatus('请输入有效的 GitHub 仓库链接 (https://github.com/...)');
+        return;
+      }
+      installPlugin({ repo: url });
+    };
+
+    loadCatalog();
+  </script>
+</body>
+</html>

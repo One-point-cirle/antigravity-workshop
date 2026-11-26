@@ -252,12 +252,33 @@
       color: var(--fg);
       font-size: 12.5px;
       line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+    .card-summary.bilingual-box {
+      display: block;
+    }
+    .card-zh-line {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      word-break: break-word;
     }
     .card-orig-note {
       margin-top: 4px;
       font-size: 11.5px;
       color: var(--muted);
       line-height: 1.45;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      word-break: break-word;
     }
 
     .expand-row {
@@ -309,8 +330,16 @@
       font-size: 12px;
       line-height: 1.55;
       color: var(--fg);
+      max-height: 300px;
+      overflow-y: auto;
     }
     .details-drawer.open { display: block; }
+    .detail-full-summary {
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      color: var(--fg);
+    }
     .detail-sec { margin-bottom: 7px; }
     .detail-sec:last-child { margin-bottom: 0; }
     .detail-label { font-weight: 600; color: var(--fg); margin-bottom: 2px; }
@@ -444,6 +473,8 @@
       font-size: 12.5px;
       line-height: 1.65;
       color: var(--fg);
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
     .reader-body pre {
       background: var(--surface);
@@ -470,6 +501,54 @@
     .reader-body h1 { font-size: 15.5px; }
     .reader-body h2 { font-size: 13.5px; }
     .reader-body h3 { font-size: 12.5px; border-bottom: none; }
+    .reader-body img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+      vertical-align: middle;
+    }
+    .reader-body table {
+      border-collapse: collapse;
+      width: 100%;
+      display: block;
+      overflow-x: auto;
+      margin: 9px 0;
+    }
+    .reader-body th, .reader-body td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      font-size: 11.8px;
+      text-align: left;
+    }
+    .reader-body th { background: var(--surface); font-weight: 600; }
+    .reader-body blockquote {
+      margin: 8px 0;
+      padding: 4px 11px;
+      border-left: 3px solid var(--border);
+      color: var(--muted);
+    }
+    .reader-body details {
+      margin: 8px 0;
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface);
+    }
+    .reader-body summary { cursor: pointer; font-weight: 600; }
+    .reader-body hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+    .reader-body ul, .reader-body ol { padding-left: 20px; margin: 6px 0; }
+    .reader-body li { margin: 3px 0; }
+    .reader-body .markdown-alert {
+      padding: 8px 11px;
+      border-left: 3px solid var(--primary);
+      background: var(--surface);
+      border-radius: 6px;
+      margin: 8px 0;
+    }
+    .reader-body .markdown-heading { display: flex; align-items: center; gap: 6px; }
+    .reader-body .markdown-heading > h1,
+    .reader-body .markdown-heading > h2,
+    .reader-body .markdown-heading > h3 { width: 100%; }
   </style>
 </head>
 <body>
@@ -598,7 +677,10 @@
       loadingGh: false,
       expanded: new Set(),
       pluginsDir: '',
+      readerMode: 'markdown',
       readerRawMd: '',
+      readerRawHtml: '',
+      readerRawBase: '',
       readerTranslatedCache: new Map(),
       readerItem: null,
     };
@@ -652,39 +734,121 @@
       return { text: '中风险·社区开源', cls: 'badge-medium' };
     }
 
-    function simpleMdToHtml(md) {
-      let safe = escapeHtml(md);
-      safe = safe.replace(/```([\s\S]*?)```/g, (_, code) => `<pre><code>${code.trim()}</code></pre>`);
+    function toProxyImgSrc(rawUrl, rawBase = '') {
+      let abs = String(rawUrl || '').trim();
+      if (!abs) return '';
+      if (!/^https?:\/\//i.test(abs) && rawBase) {
+        try { abs = new URL(abs.replace(/^\.\//, ''), rawBase).href; } catch {}
+      }
+      if (!/^https?:\/\//i.test(abs)) return '';
+      const useMirror = document.getElementById('use-mirror')?.checked ? '1' : '0';
+      return `/api/proxy-img?url=${encodeURIComponent(abs)}&mirror=${useMirror}`;
+    }
+
+    function simpleMdToHtml(md, rawBase = '') {
+      let src = String(md || '');
+      const codeBlocks = [];
+      src = src.replace(/```[\s\S]*?```/g, (m) => {
+        const idx = codeBlocks.length;
+        const inner = m.replace(/^```[^\n]*\n?/, '').replace(/```$/, '').trim();
+        codeBlocks.push(`<pre><code>${escapeHtml(inner)}</code></pre>`);
+        return `__CODE_BLK_${idx}__`;
+      });
+
+      let safe = escapeHtml(src);
       safe = safe.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+      // 图片 ![alt](url) 与内联 <img src="...">（均经本地后端 /api/proxy-img 代理加载）
+      safe = safe.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/g, (_, alt, u) => {
+        const p = toProxyImgSrc(u.replace(/&amp;/g, '&'), rawBase);
+        return p ? `<img src="${p}" alt="${alt}" loading="lazy" />` : '';
+      });
+      safe = safe.replace(/&lt;img\b[^>]*\bsrc=(?:&quot;|&#39;)([^&"']+)(?:&quot;|&#39;)[^>]*&gt;/gi, (_, u) => {
+        const p = toProxyImgSrc(u.replace(/&amp;/g, '&'), rawBase);
+        return p ? `<img src="${p}" loading="lazy" />` : '';
+      });
       safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+      safe = safe.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+
       const lines = safe.split('\n');
       const out = [];
-      let inPre = false;
       for (const line of lines) {
-        if (line.includes('<pre>')) inPre = true;
-        if (inPre) {
-          out.push(line);
-          if (line.includes('</pre>')) inPre = false;
-          continue;
-        }
-        if (/^###\s+(.+)/.test(line)) out.push(`<h3>${line.replace(/^###\s+/, '')}</h3>`);
+        const trimmed = line.trim();
+        if (/^__CODE_BLK_\d+__$/.test(trimmed)) { out.push(trimmed); continue; }
+        if (/^---+$/.test(trimmed)) out.push('<hr/>');
+        else if (/^####\s+(.+)/.test(line)) out.push(`<h4>${line.replace(/^####\s+/, '')}</h4>`);
+        else if (/^###\s+(.+)/.test(line)) out.push(`<h3>${line.replace(/^###\s+/, '')}</h3>`);
         else if (/^##\s+(.+)/.test(line)) out.push(`<h2>${line.replace(/^##\s+/, '')}</h2>`);
         else if (/^#\s+(.+)/.test(line)) out.push(`<h1>${line.replace(/^#\s+/, '')}</h1>`);
+        else if (/^&gt;\s?(.*)/.test(line)) out.push(`<blockquote>${line.replace(/^&gt;\s?/, '')}</blockquote>`);
         else if (/^[-*]\s+(.+)/.test(line)) out.push(`<div>• ${line.replace(/^[-*]\s+/, '')}</div>`);
-        else if (!line.trim()) out.push('<div style="height:6px"></div>');
+        else if (!trimmed) out.push('<div style="height:6px"></div>');
         else out.push(`<div>${line}</div>`);
       }
-      return out.join('\n');
+      return out.join('\n').replace(/__CODE_BLK_(\d+)__/g, (_, i) => codeBlocks[Number(i)] || '');
+    }
+
+    function renderReaderRaw() {
+      const body = document.getElementById('reader-body');
+      if (state.readerMode === 'html' && state.readerRawHtml) {
+        body.innerHTML = `<article class="markdown-body">${state.readerRawHtml}</article>`;
+      } else {
+        body.innerHTML = simpleMdToHtml(state.readerRawMd, state.readerRawBase);
+      }
+      document.getElementById('reader-orig-btn').style.display = 'none';
+    }
+
+    async function translateDomTextNodes(rootEl, targetLang) {
+      const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          const p = node.parentElement;
+          if (!p || p.closest('pre, code, kbd, samp, script, style, svg')) return NodeFilter.FILTER_REJECT;
+          const v = node.nodeValue || '';
+          return /[A-Za-z]{2,}/.test(v.trim()) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+        }
+      });
+      const nodes = [];
+      const uniqueTexts = [];
+      const textToIdx = new Map();
+      let cur;
+      while ((cur = walker.nextNode())) {
+        const clean = cur.nodeValue.trim();
+        if (!clean) continue;
+        nodes.push({ node: cur, clean, lead: /^\s*/.exec(cur.nodeValue)[0], trail: /\s*$/.exec(cur.nodeValue)[0] });
+        if (!textToIdx.has(clean)) {
+          textToIdx.set(clean, uniqueTexts.length);
+          uniqueTexts.push(clean);
+        }
+      }
+      if (!uniqueTexts.length) return;
+
+      const translatedMap = new Array(uniqueTexts.length);
+      const maxBatch = Math.min(uniqueTexts.length, 120);
+      for (let i = 0; i < maxBatch; i += 20) {
+        const chunk = uniqueTexts.slice(i, i + 20);
+        const res = await apiFetch('/api/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ texts: chunk, tl: targetLang })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || '翻译失败');
+        (data.texts || []).forEach((t, j) => { translatedMap[i + j] = t; });
+      }
+      for (const item of nodes) {
+        const idx = textToIdx.get(item.clean);
+        const tr = translatedMap[idx];
+        if (tr) item.node.nodeValue = `${item.lead}${tr}${item.trail}`;
+      }
     }
 
     async function translateReader(targetLang) {
-      if (!state.readerRawMd) return;
+      if (!state.readerRawHtml && !state.readerRawMd) return;
       const body = document.getElementById('reader-body');
       const origBtn = document.getElementById('reader-orig-btn');
       const tBtn = document.getElementById('reader-translate-btn');
 
       if (state.readerTranslatedCache.has(targetLang)) {
-        body.innerHTML = simpleMdToHtml(state.readerTranslatedCache.get(targetLang));
+        body.innerHTML = state.readerTranslatedCache.get(targetLang);
         origBtn.style.display = 'inline-flex';
         return;
       }
@@ -692,15 +856,22 @@
       tBtn.disabled = true;
       tBtn.textContent = '翻译中...';
       try {
-        const res = await apiFetch('/api/translate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ markdown: state.readerRawMd, tl: targetLang })
-        });
-        const data = await res.json();
-        if (!data.ok) throw new Error(data.error || '翻译失败');
-        state.readerTranslatedCache.set(targetLang, data.markdown);
-        body.innerHTML = simpleMdToHtml(data.markdown);
+        if (state.readerMode === 'html' && state.readerRawHtml) {
+          body.innerHTML = `<article class="markdown-body">${state.readerRawHtml}</article>`;
+          await translateDomTextNodes(body, targetLang);
+          state.readerTranslatedCache.set(targetLang, body.innerHTML);
+        } else {
+          const res = await apiFetch('/api/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ markdown: state.readerRawMd, tl: targetLang })
+          });
+          const data = await res.json();
+          if (!data.ok) throw new Error(data.error || '翻译失败');
+          const html = simpleMdToHtml(data.markdown, state.readerRawBase);
+          state.readerTranslatedCache.set(targetLang, html);
+          body.innerHTML = html;
+        }
         origBtn.style.display = 'inline-flex';
       } catch (e) {
         setStatus('README 翻译失败：' + e.message);
@@ -721,7 +892,10 @@
       const targetUrl = item.docsUrl || item.repo || '#';
 
       state.readerItem = item;
+      state.readerMode = 'markdown';
       state.readerRawMd = '';
+      state.readerRawHtml = '';
+      state.readerRawBase = '';
       state.readerTranslatedCache = new Map();
       origBtn.style.display = 'none';
 
@@ -773,10 +947,15 @@
           `;
           return;
         }
-        state.readerRawMd = data.content;
-        body.innerHTML = simpleMdToHtml(data.content);
-        // 若全局选择了自动翻译且原 README 主要为英文，则自动译为对应语言
-        if (state.lang !== 'orig' && /[A-Za-z]{20,}/.test(data.content.slice(0, 400))) {
+        state.readerMode = data.mode === 'html' && data.html ? 'html' : 'markdown';
+        state.readerRawHtml = data.html || '';
+        state.readerRawMd = data.content || '';
+        state.readerRawBase = data.rawBase || '';
+        renderReaderRaw();
+        // 若全局选择了自动翻译且原 README 主要为非中文，则自动译为对应语言
+        const sampleText = (body.innerText || '').slice(0, 600);
+        const isMainlyEnglish = /[A-Za-z]{25,}/.test(sampleText) && !/[\u4e00-\u9fff]{12,}/.test(sampleText);
+        if (state.lang !== 'orig' && isMainlyEnglish) {
           await translateReader(readerLangSel.value);
         }
       } catch (e) {
@@ -1019,18 +1198,25 @@
 
       const summary = document.createElement('div');
       summary.className = 'card-summary';
+      let fullSummaryText = item.summary || '';
       if (item.fromGithubSearch) {
         if (state.lang === 'orig') {
-          summary.textContent = item.summaryOrig || item.summary || '';
+          fullSummaryText = item.summaryOrig || item.summary || '';
+          summary.textContent = fullSummaryText;
         } else if (state.lang === 'bilingual') {
-          summary.innerHTML = `<div>${escapeHtml(item.summaryZh || item.summary || '')}</div>` +
+          const zhText = item.summaryZh || item.summary || '';
+          fullSummaryText = (item.summaryOrig && item.summaryZh && item.summaryOrig !== item.summaryZh)
+            ? `${zhText}\n\n${item.summaryOrig}` : zhText;
+          summary.className = 'card-summary bilingual-box';
+          summary.innerHTML = `<div class="card-zh-line">${escapeHtml(zhText)}</div>` +
             (item.summaryOrig && item.summaryZh && item.summaryOrig !== item.summaryZh
               ? `<div class="card-orig-note">${escapeHtml(item.summaryOrig)}</div>` : '');
         } else {
-          summary.textContent = item.summaryZh || item.summary || '';
+          fullSummaryText = item.summaryZh || item.summary || '';
+          summary.textContent = fullSummaryText;
         }
       } else {
-        summary.textContent = item.summary || '';
+        summary.textContent = fullSummaryText;
       }
 
       const expRow = document.createElement('div');
@@ -1065,6 +1251,9 @@
       const drawer = document.createElement('div');
       drawer.className = 'details-drawer' + (isExpanded ? ' open' : '');
       let dHtml = '';
+      if (fullSummaryText && (fullSummaryText.length > 75 || /\n/.test(fullSummaryText))) {
+        dHtml += `<div class="detail-sec"><div class="detail-label">完整简介</div><div class="detail-full-summary">${escapeHtml(fullSummaryText)}</div></div>`;
+      }
       if (item.details?.features?.length) {
         dHtml += `<div class="detail-sec"><div class="detail-label">核心功能</div><ul class="detail-list">${item.details.features.map(f => `<li>${escapeHtml(f)}</li>`).join('')}</ul></div>`;
       }
@@ -1318,8 +1507,7 @@
       translateReader(e.target.value);
     });
     document.getElementById('reader-orig-btn').onclick = () => {
-      document.getElementById('reader-body').innerHTML = simpleMdToHtml(state.readerRawMd);
-      document.getElementById('reader-orig-btn').style.display = 'none';
+      renderReaderRaw();
     };
 
     document.getElementById('btn-refresh').onclick = loadCatalog;

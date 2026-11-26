@@ -1,8 +1,12 @@
 {
   "name": "workshop",
+  "version": "1.1.0",
   "displayName": "创意工坊",
   "description": "中文插件创意工坊：在侧边栏直接浏览中文目录、通过直连或镜像下载并一键安装到插件栏。",
   "author": {
-    "name": "Local Workshop"
-  }
+    "name": "One-point-cirle"
+  },
+  "homepage": "https://github.com/One-point-cirle/antigravity-workshop",
+  "repository": "https://github.com/One-point-cirle/antigravity-workshop",
+  "license": "MIT"
 }

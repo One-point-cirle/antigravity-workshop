@@ -118,7 +118,12 @@ function requestViaHttpsProxy(targetUrl, { timeoutMs = 15000, headers = {}, maxR
         }
         const chunks = [];
         res.on('data', (c) => chunks.push(c));
-        res.on('end', () => resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, buffer: Buffer.concat(chunks) }));
+        res.on('end', () => resolve({
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode,
+          contentType: String(res.headers['content-type'] || ''),
+          buffer: Buffer.concat(chunks),
+        }));
       });
       req.on('timeout', () => { req.destroy(); reject(new Error('HTTP timeout')); });
       req.on('error', reject);
@@ -140,7 +145,12 @@ async function smartHttpGet(url, { timeoutMs = 15000, headers = {}, preferProxy 
     try {
       const resp = await fetch(url, { signal: controller.signal, headers, redirect: 'follow' });
       const buffer = Buffer.from(await resp.arrayBuffer());
-      return { ok: resp.ok, status: resp.status, buffer };
+      return {
+        ok: resp.ok,
+        status: resp.status,
+        contentType: String(resp.headers.get('content-type') || ''),
+        buffer,
+      };
     } finally {
       clearTimeout(timer);
     }
@@ -822,6 +832,119 @@ app.api('/api/cold-restart', () => {
   }
 }, 'POST');
 
+function sanitizeGithubArticleHtml(rawArticleHtml, pageUrl, useMirror) {
+  let html = String(rawArticleHtml || '');
+  // 移除脚本、嵌入框架、复制按钮控件与标题旁隐形锚点 SVG
+  html = html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<(?:iframe|object|embed|form)\b[^>]*>[\s\S]*?<\/(?:iframe|object|embed|form)>/gi, '')
+    .replace(/<clipboard-copy\b[^>]*>[\s\S]*?<\/clipboard-copy>/gi, '')
+    .replace(/<div\b[^>]*class="[^"]*zeroclipboard-container[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
+    .replace(/<a\b[^>]*class="[^"]*\banchor\b[^"]*"[^>]*>[\s\S]*?<\/a>/gi, '')
+    .replace(/<source\b[^>]*>/gi, '')
+    .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+
+  const decodeAttr = (v) => v.replace(/&amp;/g, '&');
+
+  // 重写 img src 走本地后端 /api/proxy-img（自动走代理或国内镜像，彻底解决侧边栏图片无法显示）
+  html = html.replace(/<img\b([^>]*)>/gi, (full, attrs) => {
+    const srcMatch = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(attrs);
+    const canonMatch = /\bdata-canonical-src\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(attrs);
+    const rawSrc = decodeAttr((srcMatch?.[1] ?? srcMatch?.[2] ?? canonMatch?.[1] ?? canonMatch?.[2] ?? '').trim());
+    if (!rawSrc || /^javascript:/i.test(rawSrc)) return '';
+    if (/^data:image\//i.test(rawSrc)) return `<img ${attrs}>`;
+    let absUrl = rawSrc;
+    try { absUrl = new URL(rawSrc, pageUrl).href; } catch {}
+    const proxySrc = `/api/proxy-img?url=${encodeURIComponent(absUrl)}&mirror=${useMirror ? '1' : '0'}`;
+    let cleanAttrs = attrs
+      .replace(/\bsrcset\s*=\s*(?:"[^"]*"|'[^']*')/gi, '')
+      .replace(/\bsrc\s*=\s*(?:"[^"]*"|'[^']*')/gi, '');
+    return `<img src="${proxySrc}" loading="lazy"${cleanAttrs}>`;
+  });
+
+  // 相对链接补全为完整 GitHub 链接并在外部打开（保留 #页内锚点）
+  html = html.replace(/<a\b([^>]*)>/gi, (full, attrs) => {
+    const hrefMatch = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(attrs);
+    const rawHref = decodeAttr((hrefMatch?.[1] ?? hrefMatch?.[2] ?? '').trim());
+    if (!rawHref || /^javascript:/i.test(rawHref)) {
+      return `<a${attrs.replace(/\bhref\s*=\s*(?:"[^"]*"|'[^']*')/gi, '')}>`;
+    }
+    if (rawHref.startsWith('#')) return `<a${attrs}>`;
+    let absUrl = rawHref;
+    try { absUrl = new URL(rawHref, pageUrl).href; } catch {}
+    const cleanAttrs = attrs
+      .replace(/\bhref\s*=\s*(?:"[^"]*"|'[^']*')/gi, '')
+      .replace(/\btarget\s*=\s*(?:"[^"]*"|'[^']*')/gi, '')
+      .replace(/\brel\s*=\s*(?:"[^"]*"|'[^']*')/gi, '');
+    return `<a href="${absUrl}" target="_blank" rel="noopener noreferrer"${cleanAttrs}>`;
+  });
+
+  return html;
+}
+
+function guessImageMime(url, buffer, headerCt) {
+  if (headerCt && headerCt.startsWith('image/')) return headerCt;
+  const low = url.toLowerCase();
+  if (low.includes('.svg')) return 'image/svg+xml; charset=utf-8';
+  if (buffer && buffer.length >= 4) {
+    if (buffer[0] === 0x89 && buffer[1] === 0x50) return 'image/png';
+    if (buffer[0] === 0xff && buffer[1] === 0xd8) return 'image/jpeg';
+    if (buffer[0] === 0x47 && buffer[1] === 0x49) return 'image/gif';
+    if (buffer.slice(0, 4).toString('ascii') === 'RIFF') return 'image/webp';
+    const head = buffer.slice(0, 200).toString('utf-8').trimStart();
+    if (head.startsWith('<svg') || (head.startsWith('<?xml') && head.includes('<svg'))) {
+      return 'image/svg+xml; charset=utf-8';
+    }
+  }
+  return 'image/png';
+}
+
+app.api('/api/proxy-img', async (query) => {
+  try {
+    const rawUrl = String(query?.url || '').trim();
+    const useMirror = query?.mirror !== '0';
+    let parsedUrl;
+    try { parsedUrl = new URL(rawUrl); } catch {
+      return new Response('Invalid URL', { status: 400, contentType: 'text/plain' });
+    }
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      return new Response('Forbidden protocol', { status: 403, contentType: 'text/plain' });
+    }
+    const h = parsedUrl.hostname.toLowerCase();
+    if (h === 'localhost' || h === '::1' || /^(127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h)) {
+      return new Response('Forbidden host', { status: 403, contentType: 'text/plain' });
+    }
+
+    const candidates = [rawUrl];
+    if (useMirror && /^https?:\/\/(raw\.githubusercontent\.com|github\.com)\//i.test(rawUrl)) {
+      candidates.push(`https://ghfast.top/${rawUrl}`);
+    }
+
+    for (const u of candidates) {
+      try {
+        const isMirror = /ghfast\.top|gh-proxy\.com/i.test(u);
+        const resp = await smartHttpGet(u, {
+          timeoutMs: 12000,
+          headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8' },
+          preferProxy: !isMirror,
+        });
+        if (resp.ok && resp.buffer.length > 0) {
+          const ct = guessImageMime(u, resp.buffer, resp.contentType);
+          return new Response(resp.buffer, {
+            status: 200,
+            contentType: ct,
+            headers: { 'Cache-Control': 'public, max-age=3600' },
+          });
+        }
+      } catch {}
+    }
+    return new Response('Image unavailable', { status: 502, contentType: 'text/plain' });
+  } catch (e) {
+    return new Response(String(e?.message || e), { status: 500, contentType: 'text/plain' });
+  }
+}, 'GET');
+
 app.api('/api/readme', async (query) => {
   try {
     const repo = String(query?.repo || '').trim();
@@ -832,6 +955,32 @@ app.api('/api/readme', async (query) => {
     const subdir = String(query?.subdir || parsed.subdir || '').trim().replace(/^\/+|\/+$/g, '');
     const branch = String(query?.branch || parsed.branch || 'main').trim();
     const useMirror = query?.useMirror !== 'false';
+    const rawBase = `https://raw.githubusercontent.com/${parsed.owner}/${parsed.repoName}/${branch}/${subdir ? subdir + '/' : ''}`;
+
+    // 1. 优先拉取 GitHub 官方渲染好的网页版 README (<article class="markdown-body">)，完整保留表格/折叠/图片与原生排版
+    const pageUrl = subdir ? `${parsed.repoBase}/tree/${branch}/${subdir}` : parsed.repoBase;
+    try {
+      const pageResp = await smartHttpGet(pageUrl, {
+        timeoutMs: 12000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml',
+        },
+        preferProxy: true,
+      });
+      if (pageResp.ok) {
+        const pageHtml = pageResp.buffer.toString('utf-8');
+        const artMatch = /<article\b[^>]*class="[^"]*\bmarkdown-body\b[^"]*"[^>]*>([\s\S]*?)<\/article>/i.exec(pageHtml);
+        if (artMatch && artMatch[1] && artMatch[1].trim().length > 40) {
+          const cleanHtml = sanitizeGithubArticleHtml(artMatch[1], pageUrl, useMirror);
+          return { ok: true, mode: 'html', html: cleanHtml, sourceUrl: pageUrl, rawBase };
+        }
+      }
+    } catch {
+      // 回退到 raw README.md 链路
+    }
+
+    // 2. 兜底回退：通过国内镜像或 raw.githubusercontent.com 拉取原始 README.md
     const branches = [...new Set([branch, 'main', 'master'])];
     const readmePaths = subdir ? [`${subdir}/README.md`, `${subdir}/readme.md`, 'README.md'] : ['README.md', 'readme.md'];
 
@@ -854,7 +1003,13 @@ app.api('/api/readme', async (query) => {
         if (resp.ok) {
           const text = resp.buffer.toString('utf-8');
           if (text && !text.trimStart().startsWith('<!DOCTYPE html')) {
-            return { ok: true, content: text.slice(0, 40000), sourceUrl: u };
+            return {
+              ok: true,
+              mode: 'markdown',
+              content: text.slice(0, 40000),
+              sourceUrl: u,
+              rawBase: `https://raw.githubusercontent.com/${parsed.owner}/${parsed.repoName}/${branch}/${subdir ? subdir + '/' : ''}`,
+            };
           }
         }
       } catch {
